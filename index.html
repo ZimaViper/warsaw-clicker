@@ -1,351 +1,426 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WARSAW CLICKER</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101722;color:white;font-family:Arial,sans-serif}
+.app{max-width:480px;margin:auto;min-height:100vh;padding-bottom:85px}
+header{text-align:center;padding:15px}
+h1{color:#55e69b;margin:5px;font-size:25px}
+.sub,.muted{color:#9aabba;font-size:12px}
+.panel{background:#192635;border:1px solid #304154;border-radius:17px;padding:15px;margin:12px}
+.balance{font-size:27px;color:#55e69b;font-weight:bold}
+.stats{display:flex;justify-content:space-between;gap:10px}
+button{border:0;border-radius:12px;padding:13px;color:white;background:#30465c;font-size:14px;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.4}
+.green{background:#20a96a;width:100%;font-size:18px}
+.gold{background:#b88728}
+.screen{display:none}
+.screen.active{display:block}
+.scene{height:390px;border-radius:20px;margin:12px;position:relative;overflow:hidden;background-size:cover;background-position:center;display:flex;flex-direction:column;justify-content:space-between;padding:15px;box-shadow:0 12px 35px #0008}
+.street{background-image:linear-gradient(#0002,#0007),url('https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=900')}
+.interior{background-image:linear-gradient(#0003,#0008),url('https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=900')}
+.scene-label{font-size:20px;font-weight:bold;text-shadow:0 2px 5px #000}
+.world-stage{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;min-height:190px}
+.world-house{width:48%;min-height:130px;border-radius:15px;background:linear-gradient(145deg,#ffffff22,#0a1420bb);border:1px solid #ffffff44;display:flex;flex-direction:column;justify-content:flex-end;padding:12px;box-shadow:0 8px 25px #0008}
+.world-house img{width:100%;height:105px;object-fit:cover;border-radius:10px;margin-bottom:8px}
+.world-car img{width:100%;max-width:170px;height:95px;object-fit:contain;filter:drop-shadow(0 6px 5px #000)}
+.world-car{flex:1;min-width:0;text-align:center;font-size:55px}
+.world-house b{font-size:13px;text-shadow:0 2px 4px #000}
+.person{font-size:45px;text-align:center;flex:1}
+.scene-bottom{display:flex;gap:8px;flex-wrap:wrap}
+.scene-bottom button{background:#172b3ddd;flex:1}
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#111c29;border-top:1px solid #344458;display:grid;grid-template-columns:repeat(6,1fr);padding:8px 3px;z-index:5}
+.nav button{background:transparent;padding:8px 1px;font-size:10px}
+.nav button.active{color:#55e69b}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.card{background:#263749;border-radius:14px;padding:11px;margin:8px 0}
+.card img{width:100%;height:105px;object-fit:cover;border-radius:10px}
+.card h3{margin:8px 0}
+.price{color:#f5c65b;font-weight:bold}
+.card button{width:100%;margin-top:9px}
+.big{font-size:45px;text-align:center;margin:15px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.player{display:flex;justify-content:space-between;padding:12px;background:#263749;border-radius:10px;margin:7px 0}
+.back{margin:5px 12px}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+<h1>🐍 WARSAW CLICKER</h1>
+<div class="sub">ТВОЯ ЖИЗНЬ. ТВОИ ПРАВИЛА. ТВОЯ ВАРШАВА.</div>
+</header>
+
+<div class="panel stats">
+ <div><div class="muted">ТВОЙ БАЛАНС</div><div class="balance" id="balance">100 zł</div></div>
+ <div><div class="muted">🚘 ТВОЯ ЖИЗНЬ В ВАРШАВЕ</div><b>Зарабатывай и развивайся</b></div>
+</div>
+
+<section id="world" class="screen active">
+ <div class="scene street">
+  <div class="scene-label">🏙️ ТВОЯ ВАРШАВА</div>
+  <div>
+   <div class="world-stage">
+    <div class="world-house"><img id="outsideHouseImg" src="" alt="Мой дом"><b id="outsideHouseName">Комната</b></div>
+    <div class="person" id="outsidePerson">🧍</div>
+    <div class="world-car" id="outsideCar"><span>🚗</span></div>
+   </div>
+   <div class="scene-bottom">
+    <button onclick="openScreen('inside')">🚪 ВОЙТИ В ДОМ</button>
+    <button onclick="openScreen('transport')">🚘 МОЯ МАШИНА</button>
+   </div>
+  </div>
+ </div>
+ <div class="panel">
+  <div class="row"><b>🏠 Моё жильё</b><b id="myhome">Комната</b></div>
+  <div class="row" style="margin-top:12px"><b>🚘 Мой транспорт</b><b id="mycar">Нет машины</b></div>
+ </div>
+</section>
+
+<section id="inside" class="screen">
+ <button class="back" onclick="openScreen('world')">⬅ НАЗАД НА УЛИЦУ</button>
+ <div class="scene interior">
+  <div class="scene-label">🏡 МОЙ ДОМ — <span id="insideHome">Комната</span></div>
+  <div class="scene-bottom">
+   <button onclick="openScreen('furniture')">🛋️ МЕБЕЛЬ</button>
+   <button onclick="openScreen('world')">🚪 ВЫЙТИ ИЗ ДОМА</button>
+  </div>
+ </div>
+ <div class="panel">
+  <h2>🛋️ Мой интерьер</h2>
+  <p>Купленная мебель: <b id="myFurniture">Пока пусто</b></p>
+  <button class="green" onclick="openScreen('shop')">ОБСТАВИТЬ ДОМ</button>
+ </div>
+</section>
+
+<section id="earn" class="screen">
+ <div class="panel">
+  <h2>💰 ВЫБЕРИ СПОСОБ ЗАРАБОТКА</h2>
+  <div class="card">
+   <div class="big">👆</div><h3>Кликер</h3>
+   <p class="muted">Нажимай и получай деньги. +0.50 zł за нажатие.</p>
+   <button class="green" onclick="playClicker()">ИГРАТЬ</button>
+  </div>
+  <div class="card">
+   <div class="big">📦</div><h3>Доставка заказов</h3>
+   <p class="muted">Выполни заказ и получи награду.</p>
+   <p class="muted" id="deliveryStatus">Заказов выполнено: 0/10</p>
+   <button class="green" id="deliveryButton" onclick="delivery()">ВЫПОЛНИТЬ ЗАКАЗ</button>
+  </div>
+  <div class="card">
+   <div class="big">🚕</div><h3>Работа таксистом</h3>
+   <p class="muted">Отвези пассажира по Варшаве.</p>
+   <p class="muted" id="taxiStatus">Заказов такси: 0/5</p>
+   <button class="green" id="taxiButton" onclick="taxi()">ВЗЯТЬ ЗАКАЗ</button>
+  </div>
+ </div>
+</section>
+
+<section id="shop" class="screen">
+ <div class="panel">
+  <h2>🛒 МАГАЗИН ЖИЛЬЯ</h2>
+  <div id="houses" class="grid"></div>
+ </div>
+ <div class="panel">
+  <h2>🛋️ МЕБЕЛЬ</h2>
+  <div id="furnitureList" class="grid"></div>
+ </div>
+</section>
+
+<section id="transport" class="screen">
+ <div class="panel">
+  <h2>🚘 АВТОСАЛОН</h2>
+  <p class="muted">Выбирай машину. После покупки она появится возле твоего дома.</p>
+  <div id="cars" class="grid"></div>
+ </div>
+</section>
+
+<section id="rating" class="screen">
+ <div class="panel">
+  <h2>🏆 РЕЙТИНГ ИГРОКОВ</h2>
+  <p class="muted">Пока показан только твой локальный результат. Общий рейтинг появится после подключения сервера.</p>
+  <div class="player"><b>🥇 Ты</b><b id="topmoney">100 zł</b></div>
+ </div>
+</section>
+
+<section id="vip" class="screen">
+ <div class="panel">
+  <h2>👑 WARSAW VIP</h2>
+  <div class="big">👑</div>
+  <h3>VIP-статус</h3>
+  <p class="muted">Бонус к заработку и особый статус в игре.</p>
+  <p class="price">Цена: 10 000 zł</p>
+  <button class="gold" id="vipButton" onclick="buyVip()">КУПИТЬ VIP</button>
+  <p id="vipStatus" class="muted">У тебя пока нет VIP.</p>
+ </div>
+</section>
+
+<section id="furniture" class="screen">
+ <button class="back" onclick="openScreen('inside')">⬅ НАЗАД В ДОМ</button>
+ <div class="panel">
+  <h2>🛋️ МЕБЕЛЬ И ИНТЕРЬЕР</h2>
+  <div id="furnitureList2" class="grid"></div>
+ </div>
+</section>
+</div>
+
+<nav class="nav">
+ <button id="nav-world" class="active" onclick="openScreen('world')">🏠<br>Дом</button>
+ <button id="nav-earn" onclick="openScreen('earn')">💰<br>Заработать</button>
+ <button id="nav-shop" onclick="openScreen('shop')">🛒<br>Магазин</button>
+ <button id="nav-transport" onclick="openScreen('transport')">🚘<br>Транспорт</button>
+ <button id="nav-rating" onclick="openScreen('rating')">🏆<br>Рейтинг</button>
+ <button id="nav-vip" onclick="openScreen('vip')">👑<br>VIP</button>
+</nav>
+
 <script>
-const tg = window.Telegram?.WebApp;
+const tg=window.Telegram?.WebApp;
 tg?.ready();
 tg?.expand();
 
-const DEFAULTS = {
-  balance: 100,
-  home: "Комната",
-  car: "Нет машины",
-  furniture: [],
-  vip: false,
-  taxiOrders: 0,
-  taxiDate: new Date().toLocaleDateString("en-CA"),
-  deliveryOrders: 0,
-  deliveryCooldownUntil: 0
+const defaults={
+ balance:100,home:"Комната",car:"Нет машины",
+ furniture:[],vip:false,deliveryCount:0,taxiCount:0,
+ workDay:new Date().toLocaleDateString("en-CA"),deliveryCooldownUntil:0
 };
 
-let data = {};
+let data;
+try{
+ data={...defaults,...JSON.parse(localStorage.getItem("warsawSave")||"{}")};
+}catch(e){data={...defaults};}
 
-try {
-  data = {
-    ...DEFAULTS,
-    ...JSON.parse(localStorage.getItem("warsawSave") || "{}")
-  };
-} catch (e) {
-  data = { ...DEFAULTS };
-}
+if(!Array.isArray(data.furniture))data.furniture=[];
+if(!Number.isFinite(data.balance))data.balance=100;
+if(!Number.isFinite(data.deliveryCount))data.deliveryCount=0;
+if(!Number.isFinite(data.taxiCount))data.taxiCount=0;
 
-if (!Array.isArray(data.furniture)) data.furniture = [];
-
-const houses = [
-  {name:"Комната",price:0,emoji:"🛏️",img:"https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=500"},
-  {name:"Квартира",price:5000,emoji:"🏢",img:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=500"},
-  {name:"Дом",price:50000,emoji:"🏡",img:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=500"},
-  {name:"Особняк",price:500000,emoji:"🏰",img:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=500"}
+const houses=[
+ {name:"Комната",price:0,emoji:"🛏️",img:"https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=500"},
+ {name:"Квартира",price:5000,emoji:"🏢",img:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=500"},
+ {name:"Дом",price:50000,emoji:"🏡",img:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=500"},
+ {name:"Особняк",price:500000,emoji:"🏰",img:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=500"}
 ];
 
-const cars = [
-  {name:"Fiat Panda",price:2000,emoji:"🚗",img:"https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=700"},
-  {name:"Opel Corsa",price:8000,emoji:"🚙",img:"https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=700"},
-  {name:"Volkswagen Golf",price:20000,emoji:"🚘",img:"https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=700"},
-  {name:"BMW 3",price:45000,emoji:"🚘",img:"https://images.unsplash.com/photo-1555215695-3004980ad54e?w=700"},
-  {name:"Audi RS6",price:100000,emoji:"🏎️",img:"https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=700"},
-  {name:"Mercedes AMG",price:200000,emoji:"🏎️",img:"https://images.unsplash.com/photo-1563720223185-11003d516935?w=700"},
-  {name:"BMW M5",price:400000,emoji:"🏎️",img:"https://images.unsplash.com/photo-1555215695-3004980ad54e?w=700"},
-  {name:"Porsche 911",price:800000,emoji:"🏎️",img:"https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=700"},
-  {name:"Lamborghini",price:2000000,emoji:"🏎️",img:"https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=700"}
+const cars=[
+ {name:"Fiat Panda",price:2000,emoji:"🚗",img:"https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=700"},
+ {name:"Opel Corsa",price:8000,emoji:"🚙",img:"https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=700"},
+ {name:"Volkswagen Golf",price:20000,emoji:"🚘",img:"https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=700"},
+ {name:"BMW 3",price:45000,emoji:"🚘",img:"https://images.unsplash.com/photo-1555215695-3004980ad54e?w=700"},
+ {name:"Audi RS6",price:100000,emoji:"🏎️",img:"https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=700"},
+ {name:"Mercedes AMG",price:200000,emoji:"🏎️",img:"https://images.unsplash.com/photo-1563720223185-11003d516935?w=700"},
+ {name:"BMW M5",price:400000,emoji:"🏎️",img:"https://images.unsplash.com/photo-1555215695-3004980ad54e?w=700"},
+ {name:"Porsche 911",price:800000,emoji:"🏎️",img:"https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=700"},
+ {name:"Lamborghini",price:2000000,emoji:"🏎️",img:"https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=700"}
 ];
 
-const furniture = [
-  {name:"Диван",price:500,emoji:"🛋️",img:"https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=700"},
-  {name:"Телевизор",price:1000,emoji:"📺",img:"https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=700"},
-  {name:"Кровать",price:1500,emoji:"🛏️",img:"https://images.unsplash.com/photo-1503602642458-232111445657?w=700"},
-  {name:"Компьютер",price:3000,emoji:"💻",img:"https://images.unsplash.com/photo-1593640408182-31c70c8268f5?w=700"}
+const furniture=[
+ {name:"Диван",price:500,emoji:"🛋️",img:"https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=700"},
+ {name:"Телевизор",price:1000,emoji:"📺",img:"https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=700"},
+ {name:"Кровать",price:1500,emoji:"🛏️",img:"https://images.unsplash.com/photo-1503602642458-232111445657?w=700"},
+ {name:"Компьютер",price:3000,emoji:"💻",img:"https://images.unsplash.com/photo-1593640408182-31c70c8268f5?w=700"}
 ];
 
-function el(id) {
-  return document.getElementById(id);
+function save(){
+ localStorage.setItem("warsawSave",JSON.stringify(data));
+ update();
+}
+function money(n){return n.toLocaleString("ru-RU")+" zł";}
+
+function update(){
+ document.getElementById("balance").textContent=data.balance.toFixed(2)+" zł";
+ document.getElementById("myhome").textContent=data.home;
+ document.getElementById("insideHome").textContent=data.home;
+ document.getElementById("mycar").textContent=data.car;
+ document.getElementById("topmoney").textContent=money(data.balance);
+ document.getElementById("myFurniture").textContent=data.furniture.length?data.furniture.join(", "):"Пока пусто";
+
+ const selectedCar=cars.find(c=>c.name===data.car);
+ document.getElementById("outsideCar").innerHTML=selectedCar
+  ?`<img src="${selectedCar.img}" alt="${selectedCar.name}">`:"<span>🚗</span>";
+
+ const selectedHouse=houses.find(h=>h.name===data.home)||houses[0];
+ document.getElementById("outsideHouseImg").src=selectedHouse.img;
+ document.getElementById("outsideHouseName").textContent=selectedHouse.name;
+ document.getElementById("vipStatus").textContent=data.vip?"👑 VIP активирован!":"У тебя пока нет VIP.";
+ document.getElementById("vipButton").textContent=data.vip?"VIP АКТИВЕН":"КУПИТЬ VIP — 10 000 zł";
+ updateWorkLimits();
 }
 
-function save() {
-  localStorage.setItem("warsawSave", JSON.stringify(data));
-  update();
+function openScreen(id){
+ document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+ const screen=document.getElementById(id);
+ if(screen)screen.classList.add("active");
+
+ document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
+ const nav=document.getElementById("nav-"+id);
+ if(nav)nav.classList.add("active");
+ if(id==="furniture"||id==="inside")document.getElementById("nav-world").classList.add("active");
 }
 
-function money(value) {
-  return Math.floor(value).toLocaleString("ru-RU") + " zł";
+function spend(price){
+ if(data.balance<price){
+  alert("Недостаточно денег! Сначала заработай.");
+  return false;
+ }
+ data.balance-=price;
+ return true;
 }
 
-function update() {
-  if (el("balance")) el("balance").textContent = Number(data.balance).toFixed(2) + " zł";
-  if (el("myhome")) el("myhome").textContent = data.home;
-  if (el("insideHome")) el("insideHome").textContent = data.home;
-  if (el("mycar")) el("mycar").textContent = data.car;
-  if (el("topmoney")) el("topmoney").textContent = money(data.balance);
-  if (el("myFurniture")) {
-    el("myFurniture").textContent =
-      data.furniture.length ? data.furniture.join(", ") : "Пока пусто";
-  }
-
-  const house = houses.find(h => h.name === data.home) || houses[0];
-  if (el("outsideHouseImg")) el("outsideHouseImg").src = house.img;
-  if (el("outsideHouseName")) el("outsideHouseName").textContent = house.name;
-
-  const car = cars.find(c => c.name === data.car);
-  if (el("outsideCar")) {
-    el("outsideCar").innerHTML = car
-      ? `<img src="${car.img}" alt="${car.name}">`
-      : "🚗";
-  }
-
-  if (el("vipStatus")) {
-    el("vipStatus").textContent = data.vip
-      ? "👑 VIP активирован!"
-      : "У тебя пока нет VIP.";
-  }
-
-  if (el("vipButton")) {
-    el("vipButton").textContent = data.vip
-      ? "VIP АКТИВЕН"
-      : "КУПИТЬ VIP — 10 000 zł";
-  }
-
-  updateJobButtons();
+function resetWorkDay(){
+ const today=new Date().toLocaleDateString("en-CA");
+ if(data.workDay!==today){
+  data.workDay=today;
+  data.taxiCount=0;
+ }
+ if(data.deliveryCooldownUntil&&Date.now()>=data.deliveryCooldownUntil){
+  data.deliveryCount=0;
+  data.deliveryCooldownUntil=0;
+ }
 }
 
-function openScreen(id) {
-  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+function updateWorkLimits(){
+ resetWorkDay();
 
-  if (el(id)) el(id).classList.add("active");
+ const now=Date.now();
+ const deliveryLeft=Math.max(0,Math.ceil((data.deliveryCooldownUntil-now)/1000));
+ const dButton=document.getElementById("deliveryButton");
+ const tButton=document.getElementById("taxiButton");
+ const dStatus=document.getElementById("deliveryStatus");
+ const tStatus=document.getElementById("taxiStatus");
 
-  document.querySelectorAll(".nav button").forEach(b => b.classList.remove("active"));
+ if(dButton&&dStatus){
+  dButton.disabled=deliveryLeft>0;
+  dStatus.textContent=deliveryLeft>0
+   ?`Перерыв! Новый заказ через ${Math.floor(deliveryLeft/60)}:${String(deliveryLeft%60).padStart(2,"0")}`
+   :`Заказов выполнено: ${data.deliveryCount}/10`;
+  dButton.textContent=deliveryLeft>0?"ОЖИДАЙТЕ":"ВЫПОЛНИТЬ ЗАКАЗ";
+ }
 
-  if (el("nav-" + id)) el("nav-" + id).classList.add("active");
-  if (id === "inside" && el("nav-world")) el("nav-world").classList.add("active");
-  if (id === "furniture" && el("nav-shop")) el("nav-shop").classList.add("active");
+ if(tButton&&tStatus){
+  const noCar=data.car==="Нет машины";
+  const limit=data.taxiCount>=5;
+  tButton.disabled=noCar||limit;
+  tStatus.textContent=noCar?"Для работы таксистом сначала купи машину."
+   :limit?"Лимит такси на сегодня исчерпан (5/5).":`Заказов такси: ${data.taxiCount}/5`;
+  tButton.textContent=noCar?"НУЖНА МАШИНА":limit?"ЛИМИТ 5/5":"ВЗЯТЬ ЗАКАЗ";
+ }
 }
 
-function spend(price) {
-  if (data.balance < price) {
-    alert("Недостаточно денег!");
-    return false;
-  }
-  data.balance -= price;
-  return true;
+function playClicker(){
+ data.balance+=data.vip?0.75:0.50;
+ save();
 }
 
-/* КЛИКЕР: БЕЗ ЭНЕРГИИ И ЛИМИТА */
-function playClicker() {
-  data.balance += data.vip ? 0.75 : 0.50;
+function delivery(){
+ resetWorkDay();
+ if(Date.now()<data.deliveryCooldownUntil){updateWorkLimits();return;}
+ if(data.deliveryCount>=10)return;
+
+ data.deliveryCount++;
+ const reward=25+Math.floor(Math.random()*51);
+ data.balance+=reward;
+
+ if(data.deliveryCount===10){
+  const pauseMinutes=5+Math.floor(Math.random()*6);
+  data.deliveryCooldownUntil=Date.now()+pauseMinutes*60*1000;
   save();
-}
-
-/* ТАКСИ: 5 ЗАКАЗОВ В ДЕНЬ, НУЖНА МАШИНА */
-function taxi() {
-  const today = new Date().toLocaleDateString("en-CA");
-
-  if (data.taxiDate !== today) {
-    data.taxiDate = today;
-    data.taxiOrders = 0;
-  }
-
-  if (data.car === "Нет машины") {
-    alert("🚫 Сначала купи машину!");
-    save();
-    return;
-  }
-
-  if (data.taxiOrders >= 5) {
-    alert("🚕 Все 5 заказов на сегодня выполнены. Возвращайся завтра!");
-    save();
-    return;
-  }
-
-  const reward = 50 + Math.floor(Math.random() * 101);
-  data.balance += reward;
-  data.taxiOrders++;
-
+  alert("Заказ выполнен! +"+money(reward)+". Ты выполнил 10 доставок. Перерыв "+pauseMinutes+" минут.");
+ }else{
   save();
-
-  alert(
-    "🚕 Заказ выполнен!\nЗаработано: " + money(reward) +
-    "\nЗаказы: " + data.taxiOrders + "/5"
-  );
+  alert("Заказ доставлен! Ты заработал "+money(reward));
+ }
 }
 
-/* ДОСТАВКА: 10 ЗАКАЗОВ, ПЕРЕРЫВ 5–10 МИНУТ */
-function delivery() {
-  const now = Date.now();
-
-  if (now < data.deliveryCooldownUntil) {
-    alert("⏳ Доставка пока недоступна. Подожди таймер.");
-    return;
-  }
-
-  if (data.deliveryOrders >= 10) {
-    startDeliveryBreak();
-    return;
-  }
-
-  const reward = 25 + Math.floor(Math.random() * 51);
-  data.balance += reward;
-  data.deliveryOrders++;
-
-  if (data.deliveryOrders === 10) {
-    const minutes = 5 + Math.floor(Math.random() * 6);
-    data.deliveryCooldownUntil = Date.now() + minutes * 60000;
-    save();
-
-    alert(
-      "📦 Десятая доставка выполнена!\n" +
-      "Заработано: " + money(reward) +
-      "\nПерерыв: " + minutes + " минут."
-    );
-    return;
-  }
-
-  save();
-
-  alert(
-    "📦 Доставка выполнена!\n+" + money(reward) +
-    "\nЗаказы: " + data.deliveryOrders + "/10"
-  );
+function taxi(){
+ resetWorkDay();
+ if(data.car==="Нет машины"){
+  alert("Чтобы работать таксистом, сначала купи машину!");
+  updateWorkLimits();
+  return;
+ }
+ if(data.taxiCount>=5){
+  alert("Ты выполнил 5 заказов такси. Лимит обновится завтра.");
+  updateWorkLimits();
+  return;
+ }
+ data.taxiCount++;
+ const reward=50+Math.floor(Math.random()*101);
+ data.balance+=reward;
+ save();
+ alert("Поездка завершена! Ты заработал "+money(reward)+". Заказов такси: "+data.taxiCount+"/5");
 }
 
-function startDeliveryBreak() {
-  const minutes = 5 + Math.floor(Math.random() * 6);
-  data.deliveryCooldownUntil = Date.now() + minutes * 60000;
-  save();
-  alert("⏳ Перерыв на " + minutes + " минут.");
+function buyHouse(name,price){
+ if(data.home===name){alert("Это уже твоё жильё.");return;}
+ if(!spend(price))return;
+ data.home=name;
+ save();
+ alert("Поздравляем! Теперь твоё жильё: "+name);
 }
 
-function updateJobButtons() {
-  const today = new Date().toLocaleDateString("en-CA");
-
-  if (data.taxiDate !== today) {
-    data.taxiDate = today;
-    data.taxiOrders = 0;
-    localStorage.setItem("warsawSave", JSON.stringify(data));
-  }
-
-  const taxiButton = document.querySelector('button[onclick="taxi()"]');
-  if (taxiButton) {
-    const noCar = data.car === "Нет машины";
-    const limit = data.taxiOrders >= 5;
-
-    taxiButton.disabled = noCar || limit;
-    taxiButton.textContent = noCar
-      ? "НУЖНА МАШИНА"
-      : limit
-        ? "ЛИМИТ 5/5 — ЗАВТРА"
-        : "ВЗЯТЬ ЗАКАЗ (" + data.taxiOrders + "/5)";
-  }
-
-  const deliveryButton = document.querySelector('button[onclick="delivery()"]');
-  if (deliveryButton) {
-    const remaining = data.deliveryCooldownUntil - Date.now();
-
-    if (remaining > 0) {
-      const mins = Math.floor(remaining / 60000);
-      const secs = Math.floor((remaining % 60000) / 1000);
-
-      deliveryButton.disabled = true;
-      deliveryButton.textContent =
-        "ОЖИДАНИЕ " + mins + ":" + String(secs).padStart(2, "0");
-    } else {
-      if (data.deliveryCooldownUntil > 0) {
-        data.deliveryOrders = 0;
-        data.deliveryCooldownUntil = 0;
-        localStorage.setItem("warsawSave", JSON.stringify(data));
-      }
-
-      deliveryButton.disabled = false;
-      deliveryButton.textContent =
-        "ДОСТАВКА (" + data.deliveryOrders + "/10)";
-    }
-  }
+function buyCar(name,price){
+ if(data.car===name){alert("Эта машина уже выбрана.");return;}
+ if(!spend(price))return;
+ data.car=name;
+ save();
+ alert("Поздравляем! Твоя новая машина: "+name);
 }
 
-function buyHouse(name, price) {
-  if (data.home === name) {
-    alert("Это уже твоё жильё.");
-    return;
-  }
-
-  if (!spend(price)) return;
-  data.home = name;
-  save();
-  alert("🏠 Теперь твоё жильё: " + name);
+function buyFurniture(name,price){
+ if(data.furniture.includes(name)){alert("У тебя уже есть этот предмет.");return;}
+ if(!spend(price))return;
+ data.furniture.push(name);
+ save();
+ alert("Куплено: "+name);
+ render();
 }
 
-function buyCar(name, price) {
-  if (data.car === name) {
-    alert("Эта машина уже выбрана.");
-    return;
-  }
-
-  if (!spend(price)) return;
-  data.car = name;
-  save();
-  alert("🚘 Ты купил: " + name);
+function buyVip(){
+ if(data.vip){alert("VIP уже активен!");return;}
+ if(!spend(10000))return;
+ data.vip=true;
+ save();
+ alert("Поздравляем! Теперь ты VIP!");
 }
 
-function buyFurniture(name, price) {
-  if (data.furniture.includes(name)) {
-    alert("У тебя уже есть этот предмет.");
-    return;
-  }
+function render(){
+ document.getElementById("houses").innerHTML=houses.map(h=>`
+ <div class="card">
+  <img src="${h.img}" onerror="this.style.display='none'">
+  <h3>${h.emoji} ${h.name}</h3>
+  <div class="price">${h.price?money(h.price):"Бесплатно"}</div>
+  <button onclick="buyHouse('${h.name}',${h.price})">${h.price?"КУПИТЬ":"ВЫБРАТЬ"}</button>
+ </div>`).join("");
 
-  if (!spend(price)) return;
-  data.furniture.push(name);
-  save();
-  alert("🛋️ Куплено: " + name);
-}
+ document.getElementById("cars").innerHTML=cars.map(c=>`
+ <div class="card">
+  <img src="${c.img}" onerror="this.style.display='none'">
+  <h3>${c.emoji} ${c.name}</h3>
+  <div class="price">${money(c.price)}</div>
+  <button onclick="buyCar('${c.name}',${c.price})">${c.price?"КУПИТЬ":"ВЫБРАТЬ"}</button>
+ </div>`).join("");
 
-function buyVip() {
-  if (data.vip) {
-    alert("VIP уже активен!");
-    return;
-  }
+ const furnitureHTML=furniture.map(f=>`
+ <div class="card">
+  <img src="${f.img}" alt="${f.name}" onerror="this.style.display='none'">
+  <h3>${f.emoji} ${f.name}</h3>
+  <div class="price">${money(f.price)}</div>
+  <button onclick="buyFurniture('${f.name}',${f.price})">${data.furniture.includes(f.name)?"КУПЛЕНО":"КУПИТЬ"}</button>
+ </div>`).join("");
 
-  if (!spend(10000)) return;
-  data.vip = true;
-  save();
-  alert("👑 Поздравляем! Ты VIP!");
-}
-
-function render() {
-  if (el("houses")) {
-    el("houses").innerHTML = houses.map(h => `
-      <div class="card">
-        <img src="${h.img}" alt="${h.name}">
-        <h3>${h.emoji} ${h.name}</h3>
-        <div class="price">${h.price ? money(h.price) : "Бесплатно"}</div>
-        <button onclick="buyHouse('${h.name}',${h.price})">
-          ${h.price ? "КУПИТЬ" : "ВЫБРАТЬ"}
-        </button>
-      </div>
-    `).join("");
-  }
-
-  if (el("cars")) {
-    el("cars").innerHTML = cars.map(c => `
-      <div class="card">
-        <img src="${c.img}" alt="${c.name}">
-        <h3>${c.emoji} ${c.name}</h3>
-        <div class="price">${money(c.price)}</div>
-        <button onclick="buyCar('${c.name}',${c.price})">КУПИТЬ</button>
-      </div>
-    `).join("");
-  }
-
-  const furnitureHTML = furniture.map(f => `
-    <div class="card">
-      <img src="${f.img}" alt="${f.name}">
-      <h3>${f.emoji} ${f.name}</h3>
-      <div class="price">${money(f.price)}</div>
-      <button onclick="buyFurniture('${f.name}',${f.price})">
-        ${data.furniture.includes(f.name) ? "КУПЛЕНО" : "КУПИТЬ"}
-      </button>
-    </div>
-  `).join("");
-
-  if (el("furnitureList")) el("furnitureList").innerHTML = furnitureHTML;
-  if (el("furnitureList2")) el("furnitureList2").innerHTML = furnitureHTML;
+ document.getElementById("furnitureList").innerHTML=furnitureHTML;
+ document.getElementById("furnitureList2").innerHTML=furnitureHTML;
 }
 
 render();
 update();
-setInterval(updateJobButtons, 1000);
+setInterval(updateWorkLimits,1000);
 </script>
+</body>
+</html>
