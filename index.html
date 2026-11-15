@@ -17,7 +17,7 @@ h1{color:#55e69b;margin:5px;font-size:25px}
 .balance{font-size:27px;color:#55e69b;font-weight:bold}
 .stats{display:flex;justify-content:space-between;gap:10px}
 button{border:0;border-radius:12px;padding:13px;color:white;background:#30465c;font-size:14px;font-weight:bold;cursor:pointer}
-button:disabled{opacity:.4}
+button:disabled{opacity:.5;cursor:not-allowed}
 .green{background:#20a96a;width:100%;font-size:18px}
 .gold{background:#b88728}
 .screen{display:none}
@@ -117,6 +117,7 @@ button:disabled{opacity:.4}
    <div class="big">🚕</div><h3>Работа таксистом</h3>
    <p class="muted">Отвези пассажира по Варшаве.</p>
    <p class="muted" id="taxiStatus">Заказов такси: 0/5</p>
+   <p class="muted" id="taxiTimer"></p>
    <button class="green" id="taxiButton" onclick="taxi()">ВЗЯТЬ ЗАКАЗ</button>
   </div>
  </div>
@@ -191,8 +192,16 @@ tg?.ready();
 tg?.expand();
 
 const defaults={
- balance:100,home:"Комната",car:"Нет машины",
- furniture:[],vip:false,deliveryCount:0,taxiCount:0,
+ balance:100,
+ home:"Комната",
+ car:"Нет машины",
+ ownedHouses:["Комната"],
+ ownedCars:[],
+ furniture:[],
+ vip:false,
+ deliveryCount:0,
+ taxiCount:0,
+ taxiCooldownUntil:0,
  bestBalance:100,
  workDay:new Date().toLocaleDateString("en-CA"),
  deliveryCooldownUntil:0
@@ -204,10 +213,18 @@ try{
 }catch(e){data={...defaults};}
 
 if(!Array.isArray(data.furniture))data.furniture=[];
+if(!Array.isArray(data.ownedHouses))data.ownedHouses=["Комната"];
+if(!Array.isArray(data.ownedCars))data.ownedCars=[];
 if(!Number.isFinite(data.balance))data.balance=100;
 if(!Number.isFinite(data.deliveryCount))data.deliveryCount=0;
 if(!Number.isFinite(data.taxiCount))data.taxiCount=0;
 if(!Number.isFinite(data.bestBalance))data.bestBalance=data.balance;
+if(!Number.isFinite(data.taxiCooldownUntil))data.taxiCooldownUntil=0;
+if(!Number.isFinite(data.deliveryCooldownUntil))data.deliveryCooldownUntil=0;
+
+/* Перенос старых покупок в список собственности */
+if(data.home&&!data.ownedHouses.includes(data.home))data.ownedHouses.push(data.home);
+if(data.car&&data.car!=="Нет машины"&&!data.ownedCars.includes(data.car))data.ownedCars.push(data.car);
 
 let cloudUser=null;
 let cloudReady=false;
@@ -259,22 +276,18 @@ async function syncPlayer(){
  if(!cloudReady||!cloudUser)return;
  if(syncInProgress){syncAgain=true;return;}
  syncInProgress=true;
-
  do{
   syncAgain=false;
   const best=Math.max(Number(data.bestBalance)||0,Number(data.balance)||0);
   data.bestBalance=best;
-
   const {error}=await db.from("players").update({
    username:playerName,
    balance:data.balance,
    best_balance:best,
    updated_at:new Date().toISOString()
   }).eq("id",cloudUser.id);
-
   if(error)console.error("Ошибка сохранения игрока:",error);
  }while(syncAgain);
-
  syncInProgress=false;
 }
 
@@ -295,8 +308,11 @@ function update(){
  const selectedHouse=houses.find(h=>h.name===data.home)||houses[0];
  document.getElementById("outsideHouseImg").src=selectedHouse.img;
  document.getElementById("outsideHouseName").textContent=selectedHouse.name;
+
  document.getElementById("vipStatus").textContent=data.vip?"👑 VIP активирован!":"У тебя пока нет VIP.";
- document.getElementById("vipButton").textContent=data.vip?"VIP АКТИВЕН":"КУПИТЬ VIP — 10 000 zł";
+ document.getElementById("vipButton").textContent=data.vip?"КУПЛЕНО":"КУПИТЬ VIP — 10 000 zł";
+ document.getElementById("vipButton").disabled=data.vip;
+
  updateWorkLimits();
 }
 
@@ -304,7 +320,6 @@ function openScreen(id){
  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
  const screen=document.getElementById(id);
  if(screen)screen.classList.add("active");
-
  document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
  const nav=document.getElementById("nav-"+id);
  if(nav)nav.classList.add("active");
@@ -333,15 +348,27 @@ function resetWorkDay(){
  }
 }
 
+function formatTime(ms){
+ const total=Math.max(0,Math.ceil(ms/1000));
+ const hours=Math.floor(total/3600);
+ const minutes=Math.floor((total%3600)/60);
+ const seconds=total%60;
+ return String(hours).padStart(2,"0")+":"+
+        String(minutes).padStart(2,"0")+":"+
+        String(seconds).padStart(2,"0");
+}
+
 function updateWorkLimits(){
  resetWorkDay();
-
  const now=Date.now();
  const deliveryLeft=Math.max(0,Math.ceil((data.deliveryCooldownUntil-now)/1000));
+ const taxiLeft=Math.max(0,data.taxiCooldownUntil-now);
+
  const dButton=document.getElementById("deliveryButton");
  const tButton=document.getElementById("taxiButton");
  const dStatus=document.getElementById("deliveryStatus");
  const tStatus=document.getElementById("taxiStatus");
+ const tTimer=document.getElementById("taxiTimer");
 
  if(dButton&&dStatus){
   dButton.disabled=deliveryLeft>0;
@@ -354,10 +381,27 @@ function updateWorkLimits(){
  if(tButton&&tStatus){
   const noCar=data.car==="Нет машины";
   const limit=data.taxiCount>=5;
-  tButton.disabled=noCar||limit;
-  tStatus.textContent=noCar?"Для работы таксистом сначала купи машину."
-   :limit?"Лимит такси на сегодня исчерпан (5/5).":`Заказов такси: ${data.taxiCount}/5`;
-  tButton.textContent=noCar?"НУЖНА МАШИНА":limit?"ЛИМИТ 5/5":"ВЗЯТЬ ЗАКАЗ";
+  const cooldown=taxiLeft>0;
+
+  tButton.disabled=noCar||limit||cooldown;
+
+  if(noCar){
+   tStatus.textContent="Для работы таксистом сначала купи машину.";
+   tTimer.textContent="";
+   tButton.textContent="НУЖНА МАШИНА";
+  }else if(limit){
+   tStatus.textContent="Лимит такси на сегодня исчерпан (5/5).";
+   tTimer.textContent="";
+   tButton.textContent="ЛИМИТ 5/5";
+  }else if(cooldown){
+   tStatus.textContent=`Заказов такси сегодня: ${data.taxiCount}/5`;
+   tTimer.textContent="Следующий заказ через: "+formatTime(taxiLeft);
+   tButton.textContent="ОЖИДАЙТЕ";
+  }else{
+   tStatus.textContent=`Заказов такси сегодня: ${data.taxiCount}/5`;
+   tTimer.textContent="Можно взять новый заказ!";
+   tButton.textContent="ВЗЯТЬ ЗАКАЗ";
+  }
  }
 }
 
@@ -388,54 +432,99 @@ function delivery(){
 
 function taxi(){
  resetWorkDay();
+
  if(data.car==="Нет машины"){
   alert("Чтобы работать таксистом, сначала купи машину!");
   updateWorkLimits();
   return;
  }
+
  if(data.taxiCount>=5){
   alert("Ты выполнил 5 заказов такси. Лимит обновится завтра.");
   updateWorkLimits();
   return;
  }
+
+ if(Date.now()<data.taxiCooldownUntil){
+  alert("Следующий заказ будет доступен через "+formatTime(data.taxiCooldownUntil-Date.now()));
+  updateWorkLimits();
+  return;
+ }
+
  data.taxiCount++;
+ data.taxiCooldownUntil=Date.now()+65*60*1000;
+
  const reward=50+Math.floor(Math.random()*101);
  data.balance+=reward;
  save();
- alert("Поездка завершена! Ты заработал "+money(reward)+". Заказов такси: "+data.taxiCount+"/5");
+
+ alert("Поездка завершена! Ты заработал "+money(reward)+
+       ". Заказов такси: "+data.taxiCount+"/5. Следующий заказ через 1 час 5 минут.");
 }
 
 function buyHouse(name,price){
- if(data.home===name){alert("Это уже твоё жильё.");return;}
+ if(data.ownedHouses.includes(name)){
+  if(data.home===name){
+   alert("Уже куплено! Это твоё жильё.");
+   return;
+  }
+  data.home=name;
+  save();
+  render();
+  alert("Выбрано твоё жильё: "+name);
+  return;
+ }
+
  if(!spend(price))return;
+ data.ownedHouses.push(name);
  data.home=name;
  save();
- alert("Поздравляем! Теперь твоё жильё: "+name);
+ render();
+ alert("КУПЛЕНО! Теперь твоё жильё: "+name);
 }
 
 function buyCar(name,price){
- if(data.car===name){alert("Эта машина уже выбрана.");return;}
+ if(data.ownedCars.includes(name)){
+  if(data.car===name){
+   alert("Эта машина уже куплена и выбрана.");
+   return;
+  }
+  data.car=name;
+  save();
+  render();
+  alert("Выбрана твоя машина: "+name);
+  return;
+ }
+
  if(!spend(price))return;
+ data.ownedCars.push(name);
  data.car=name;
  save();
- alert("Поздравляем! Твоя новая машина: "+name);
+ render();
+ alert("КУПЛЕНО! Твоя новая машина: "+name);
 }
 
 function buyFurniture(name,price){
- if(data.furniture.includes(name)){alert("У тебя уже есть этот предмет.");return;}
+ if(data.furniture.includes(name)){
+  alert("У тебя уже есть этот предмет.");
+  return;
+ }
  if(!spend(price))return;
  data.furniture.push(name);
  save();
- alert("Куплено: "+name);
  render();
+ alert("КУПЛЕНО: "+name);
 }
 
 function buyVip(){
- if(data.vip){alert("VIP уже активен!");return;}
+ if(data.vip){
+  alert("VIP уже куплен!");
+  return;
+ }
  if(!spend(10000))return;
  data.vip=true;
  save();
- alert("Поздравляем! Теперь ты VIP!");
+ alert("КУПЛЕНО! Поздравляем, теперь ты VIP!");
 }
 
 function escapeHTML(value){
@@ -448,15 +537,12 @@ async function renderRating(){
  const status=document.getElementById("ratingStatus");
  const list=document.getElementById("ratingList");
  if(!status||!list)return;
-
  if(!cloudReady){
   status.textContent="Подключаем общий рейтинг...";
   return;
  }
-
  status.textContent="Загружаем игроков...";
- const {data:players,error}=await db
-  .from("players")
+ const {data:players,error}=await db.from("players")
   .select("id,username,balance,best_balance")
   .order("best_balance",{ascending:false})
   .limit(50);
@@ -466,15 +552,12 @@ async function renderRating(){
   status.textContent="Не удалось загрузить рейтинг. Проверь подключение.";
   return;
  }
-
  if(!players||players.length===0){
   status.textContent="Пока игроков нет. Будь первым!";
   list.innerHTML="";
   return;
  }
-
  status.textContent="Игроков в рейтинге: "+players.length;
-
  list.innerHTML=players.map((p,index)=>{
   const medal=index===0?"🥇":index===1?"🥈":index===2?"🥉":(index+1)+".";
   const isMe=cloudUser&&p.id===cloudUser.id;
@@ -489,7 +572,6 @@ async function initCloud(){
  const status=document.getElementById("ratingStatus");
  try{
   status.textContent="Подключаемся к серверу...";
-
   let {data:sessionData,error:sessionError}=await db.auth.getSession();
   if(sessionError)throw sessionError;
 
@@ -501,12 +583,8 @@ async function initCloud(){
 
   cloudUser=sessionData.session.user;
 
-  const {data:profile,error:profileError}=await db
-   .from("players")
-   .select("*")
-   .eq("id",cloudUser.id)
-   .maybeSingle();
-
+  const {data:profile,error:profileError}=await db.from("players")
+   .select("*").eq("id",cloudUser.id).maybeSingle();
   if(profileError)throw profileError;
 
   if(profile){
@@ -516,7 +594,6 @@ async function initCloud(){
   }else{
    playerName=getPlayerName();
    if(playerName==="Игрок")playerName="Игрок "+cloudUser.id.slice(0,5);
-
    const {error:insertError}=await db.from("players").insert({
     id:cloudUser.id,
     username:playerName,
@@ -538,29 +615,39 @@ async function initCloud(){
 }
 
 function render(){
- document.getElementById("houses").innerHTML=houses.map(h=>`
- <div class="card">
-  <img src="${h.img}" onerror="this.style.display='none'">
-  <h3>${h.emoji} ${h.name}</h3>
-  <div class="price">${h.price?money(h.price):"Бесплатно"}</div>
-  <button onclick="buyHouse('${h.name}',${h.price})">${h.price?"КУПИТЬ":"ВЫБРАТЬ"}</button>
- </div>`).join("");
+ document.getElementById("houses").innerHTML=houses.map(h=>{
+  const owned=data.ownedHouses.includes(h.name);
+  const selected=data.home===h.name;
+  const label=selected?"КУПЛЕНО • МОЁ":owned?"ВЫБРАТЬ":h.price?"КУПИТЬ":"ВЫБРАТЬ";
+  return `<div class="card">
+   <img src="${h.img}" onerror="this.style.display='none'">
+   <h3>${h.emoji} ${h.name}</h3>
+   <div class="price">${h.price?money(h.price):"Бесплатно"}</div>
+   <button ${selected?'disabled':''} onclick="buyHouse('${h.name}',${h.price})">${label}</button>
+  </div>`;
+ }).join("");
 
- document.getElementById("cars").innerHTML=cars.map(c=>`
- <div class="card">
-  <img src="${c.img}" onerror="this.style.display='none'">
-  <h3>${c.emoji} ${c.name}</h3>
-  <div class="price">${money(c.price)}</div>
-  <button onclick="buyCar('${c.name}',${c.price})">КУПИТЬ</button>
- </div>`).join("");
+ document.getElementById("cars").innerHTML=cars.map(c=>{
+  const owned=data.ownedCars.includes(c.name);
+  const selected=data.car===c.name;
+  const label=selected?"КУПЛЕНО • ВЫБРАНО":owned?"ВЫБРАТЬ":"КУПИТЬ";
+  return `<div class="card">
+   <img src="${c.img}" onerror="this.style.display='none'">
+   <h3>${c.emoji} ${c.name}</h3>
+   <div class="price">${money(c.price)}</div>
+   <button ${selected?'disabled':''} onclick="buyCar('${c.name}',${c.price})">${label}</button>
+  </div>`;
+ }).join("");
 
- const furnitureHTML=furniture.map(f=>`
- <div class="card">
-  <img src="${f.img}" alt="${f.name}" onerror="this.style.display='none'">
-  <h3>${f.emoji} ${f.name}</h3>
-  <div class="price">${money(f.price)}</div>
-  <button onclick="buyFurniture('${f.name}',${f.price})">${data.furniture.includes(f.name)?"КУПЛЕНО":"КУПИТЬ"}</button>
- </div>`).join("");
+ const furnitureHTML=furniture.map(f=>{
+  const owned=data.furniture.includes(f.name);
+  return `<div class="card">
+   <img src="${f.img}" alt="${f.name}" onerror="this.style.display='none'">
+   <h3>${f.emoji} ${f.name}</h3>
+   <div class="price">${money(f.price)}</div>
+   <button ${owned?'disabled':''} onclick="buyFurniture('${f.name}',${f.price})">${owned?"КУПЛЕНО":"КУПИТЬ"}</button>
+  </div>`;
+ }).join("");
 
  document.getElementById("furnitureList").innerHTML=furnitureHTML;
  document.getElementById("furnitureList2").innerHTML=furnitureHTML;
@@ -569,6 +656,7 @@ function render(){
 render();
 update();
 initCloud();
+
 setInterval(updateWorkLimits,1000);
 setInterval(renderRating,15000);
 </script>
