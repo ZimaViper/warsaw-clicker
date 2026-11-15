@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -6,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WARSAW CLICKER</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#101722;color:white;font-family:Arial,sans-serif}
@@ -46,7 +46,7 @@ button:disabled{opacity:.4}
 .card button{width:100%;margin-top:9px}
 .big{font-size:45px;text-align:center;margin:15px}
 .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.player{display:flex;justify-content:space-between;padding:12px;background:#263749;border-radius:10px;margin:7px 0}
+.player{display:flex;justify-content:space-between;align-items:center;padding:12px;background:#263749;border-radius:10px;margin:7px 0;gap:8px}
 .back{margin:5px 12px}
 </style>
 </head>
@@ -143,9 +143,11 @@ button:disabled{opacity:.4}
 
 <section id="rating" class="screen">
  <div class="panel">
-  <h2>🏆 РЕЙТИНГ ИГРОКОВ</h2>
-  <p class="muted">Пока показан только твой локальный результат. Общий рейтинг появится после подключения сервера.</p>
-  <div class="player"><b>🥇 Ты</b><b id="topmoney">100 zł</b></div>
+  <h2>🏆 ОБЩИЙ РЕЙТИНГ ИГРОКОВ</h2>
+  <p class="muted" id="ratingStatus">Подключаем рейтинг...</p>
+  <div class="player"><b>Твой рекорд</b><b id="topmoney">100 zł</b></div>
+  <button class="green" onclick="renderRating()">🔄 ОБНОВИТЬ РЕЙТИНГ</button>
+  <div id="ratingList" style="margin-top:12px"></div>
  </div>
 </section>
 
@@ -180,6 +182,10 @@ button:disabled{opacity:.4}
 </nav>
 
 <script>
+const SUPABASE_URL="https://adaztghxhoahglewrtxr.supabase.co";
+const SUPABASE_KEY="sb_publishable_ouwpwWFnTjDG5ainorR8bw_SZ60Csit";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
 const tg=window.Telegram?.WebApp;
 tg?.ready();
 tg?.expand();
@@ -187,7 +193,9 @@ tg?.expand();
 const defaults={
  balance:100,home:"Комната",car:"Нет машины",
  furniture:[],vip:false,deliveryCount:0,taxiCount:0,
- workDay:new Date().toLocaleDateString("en-CA"),deliveryCooldownUntil:0
+ bestBalance:100,
+ workDay:new Date().toLocaleDateString("en-CA"),
+ deliveryCooldownUntil:0
 };
 
 let data;
@@ -199,6 +207,20 @@ if(!Array.isArray(data.furniture))data.furniture=[];
 if(!Number.isFinite(data.balance))data.balance=100;
 if(!Number.isFinite(data.deliveryCount))data.deliveryCount=0;
 if(!Number.isFinite(data.taxiCount))data.taxiCount=0;
+if(!Number.isFinite(data.bestBalance))data.bestBalance=data.balance;
+
+let cloudUser=null;
+let cloudReady=false;
+let playerName="Игрок";
+let syncInProgress=false;
+let syncAgain=false;
+
+function getPlayerName(){
+ const user=tg?.initDataUnsafe?.user;
+ if(user?.username)return "@"+user.username;
+ if(user?.first_name)return user.first_name;
+ return "Игрок";
+}
 
 const houses=[
  {name:"Комната",price:0,emoji:"🛏️",img:"https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=500"},
@@ -227,17 +249,43 @@ const furniture=[
 ];
 
 function save(){
+ data.bestBalance=Math.max(data.bestBalance||0,data.balance);
  localStorage.setItem("warsawSave",JSON.stringify(data));
  update();
+ syncPlayer();
 }
-function money(n){return n.toLocaleString("ru-RU")+" zł";}
+
+async function syncPlayer(){
+ if(!cloudReady||!cloudUser)return;
+ if(syncInProgress){syncAgain=true;return;}
+ syncInProgress=true;
+
+ do{
+  syncAgain=false;
+  const best=Math.max(Number(data.bestBalance)||0,Number(data.balance)||0);
+  data.bestBalance=best;
+
+  const {error}=await db.from("players").update({
+   username:playerName,
+   balance:data.balance,
+   best_balance:best,
+   updated_at:new Date().toISOString()
+  }).eq("id",cloudUser.id);
+
+  if(error)console.error("Ошибка сохранения игрока:",error);
+ }while(syncAgain);
+
+ syncInProgress=false;
+}
+
+function money(n){return Number(n).toLocaleString("ru-RU")+" zł";}
 
 function update(){
  document.getElementById("balance").textContent=data.balance.toFixed(2)+" zł";
  document.getElementById("myhome").textContent=data.home;
  document.getElementById("insideHome").textContent=data.home;
  document.getElementById("mycar").textContent=data.car;
- document.getElementById("topmoney").textContent=money(data.balance);
+ document.getElementById("topmoney").textContent=money(data.bestBalance);
  document.getElementById("myFurniture").textContent=data.furniture.length?data.furniture.join(", "):"Пока пусто";
 
  const selectedCar=cars.find(c=>c.name===data.car);
@@ -261,6 +309,7 @@ function openScreen(id){
  const nav=document.getElementById("nav-"+id);
  if(nav)nav.classList.add("active");
  if(id==="furniture"||id==="inside")document.getElementById("nav-world").classList.add("active");
+ if(id==="rating")renderRating();
 }
 
 function spend(price){
@@ -389,6 +438,105 @@ function buyVip(){
  alert("Поздравляем! Теперь ты VIP!");
 }
 
+function escapeHTML(value){
+ return String(value).replace(/[&<>"']/g,char=>({
+  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+ }[char]));
+}
+
+async function renderRating(){
+ const status=document.getElementById("ratingStatus");
+ const list=document.getElementById("ratingList");
+ if(!status||!list)return;
+
+ if(!cloudReady){
+  status.textContent="Подключаем общий рейтинг...";
+  return;
+ }
+
+ status.textContent="Загружаем игроков...";
+ const {data:players,error}=await db
+  .from("players")
+  .select("id,username,balance,best_balance")
+  .order("best_balance",{ascending:false})
+  .limit(50);
+
+ if(error){
+  console.error(error);
+  status.textContent="Не удалось загрузить рейтинг. Проверь подключение.";
+  return;
+ }
+
+ if(!players||players.length===0){
+  status.textContent="Пока игроков нет. Будь первым!";
+  list.innerHTML="";
+  return;
+ }
+
+ status.textContent="Игроков в рейтинге: "+players.length;
+
+ list.innerHTML=players.map((p,index)=>{
+  const medal=index===0?"🥇":index===1?"🥈":index===2?"🥉":(index+1)+".";
+  const isMe=cloudUser&&p.id===cloudUser.id;
+  return `<div class="player" style="${isMe?"border:1px solid #55e69b":""}">
+   <b>${medal} ${escapeHTML(p.username||"Игрок")}${isMe?" (Ты)":""}</b>
+   <b>${money(Number(p.best_balance)||0)}</b>
+  </div>`;
+ }).join("");
+}
+
+async function initCloud(){
+ const status=document.getElementById("ratingStatus");
+ try{
+  status.textContent="Подключаемся к серверу...";
+
+  let {data:sessionData,error:sessionError}=await db.auth.getSession();
+  if(sessionError)throw sessionError;
+
+  if(!sessionData.session){
+   const result=await db.auth.signInAnonymously();
+   if(result.error)throw result.error;
+   sessionData.session=result.data.session;
+  }
+
+  cloudUser=sessionData.session.user;
+
+  const {data:profile,error:profileError}=await db
+   .from("players")
+   .select("*")
+   .eq("id",cloudUser.id)
+   .maybeSingle();
+
+  if(profileError)throw profileError;
+
+  if(profile){
+   playerName=profile.username||getPlayerName();
+   data.balance=Number(profile.balance)||0;
+   data.bestBalance=Number(profile.best_balance)||data.balance;
+  }else{
+   playerName=getPlayerName();
+   if(playerName==="Игрок")playerName="Игрок "+cloudUser.id.slice(0,5);
+
+   const {error:insertError}=await db.from("players").insert({
+    id:cloudUser.id,
+    username:playerName,
+    balance:data.balance,
+    best_balance:Math.max(data.balance,data.bestBalance)
+   });
+   if(insertError)throw insertError;
+  }
+
+  cloudReady=true;
+  localStorage.setItem("warsawSave",JSON.stringify(data));
+  update();
+  await renderRating();
+  console.log("WARSAW CLICKER: общий рейтинг подключён");
+ }catch(error){
+  console.error("Ошибка Supabase:",error);
+  status.textContent="Ошибка подключения: "+(error.message||"проверь настройки Supabase");
+ }
+}
+
 function render(){
  document.getElementById("houses").innerHTML=houses.map(h=>`
  <div class="card">
@@ -403,7 +551,7 @@ function render(){
   <img src="${c.img}" onerror="this.style.display='none'">
   <h3>${c.emoji} ${c.name}</h3>
   <div class="price">${money(c.price)}</div>
-  <button onclick="buyCar('${c.name}',${c.price})">${c.price?"КУПИТЬ":"ВЫБРАТЬ"}</button>
+  <button onclick="buyCar('${c.name}',${c.price})">КУПИТЬ</button>
  </div>`).join("");
 
  const furnitureHTML=furniture.map(f=>`
@@ -420,7 +568,9 @@ function render(){
 
 render();
 update();
+initCloud();
 setInterval(updateWorkLimits,1000);
+setInterval(renderRating,15000);
 </script>
 </body>
 </html>
