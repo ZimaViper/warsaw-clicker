@@ -1,38 +1,151 @@
-<!doctype html>
+
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>WARSAW VIPER</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WARSAW CLICKER</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-:root{color-scheme:dark;--bg:#0b1118;--panel:#151f2b;--muted:#91a2b5;--green:#59e39a;--gold:#f4c45e}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 0,#1c3440 0,#0b1118 48%);color:#f4f7fb;font-family:Arial,sans-serif;min-height:100vh}
-.app{max-width:480px;margin:auto;padding:22px 18px 30px}.top{display:flex;justify-content:space-between;align-items:center;font-weight:800;letter-spacing:.7px}.tag{font-size:11px;color:var(--green);border:1px solid #28694a;padding:6px 9px;border-radius:20px}
-.balance{margin-top:24px;padding:23px 18px;background:linear-gradient(145deg,#1b3540,#172331);border:1px solid #34505a;border-radius:24px;text-align:center;box-shadow:0 14px 40px #0005}
-.muted{color:var(--muted);font-size:11px;letter-spacing:1.5px;font-weight:bold}.money{font-size:42px;font-weight:900;color:var(--green);margin:8px 0}.level{font-size:12px;color:#c4d1dc}
-.energy{margin-top:18px;background:#0b141d;border-radius:15px;padding:13px}.energyline{display:flex;justify-content:space-between;font-size:13px;margin-bottom:9px}.bar{height:9px;background:#293846;border-radius:9px;overflow:hidden}.fill{height:100%;width:100%;background:linear-gradient(90deg,#36b978,#8bf0a9);transition:width .2s}
-.work{margin-top:18px;text-align:center}.worker{font-size:76px;filter:drop-shadow(0 10px 16px #0008)}.reward{color:var(--green);font-weight:bold;margin:6px}
-.tap{width:100%;border:0;border-radius:17px;padding:18px;background:linear-gradient(100deg,#28a96a,#63e49b);color:#082015;font-weight:900;font-size:17px;box-shadow:0 7px 0 #17683f;cursor:pointer;touch-action:manipulation}.tap:active{transform:translateY(4px);box-shadow:0 3px 0 #17683f}.tap:disabled{opacity:.45}
-.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;margin-top:24px}.tile{background:var(--panel);border:1px solid #263545;border-radius:16px;padding:17px;text-align:center;font-weight:bold}.tile span{display:block;font-size:25px;margin-bottom:7px}.note{text-align:center;color:var(--muted);font-size:11px;margin-top:22px;line-height:1.5}
+*{box-sizing:border-box}
+body{margin:0;background:#0b1018;color:white;font-family:Arial,sans-serif;padding:18px}
+.app{max-width:480px;margin:auto}
+header{text-align:center;padding:15px}
+h1{color:#55e69b;margin:5px;font-size:27px}
+.sub{color:#91a2b5;font-size:12px}
+.panel{background:#172231;border:1px solid #29384a;border-radius:17px;padding:17px;margin:13px 0}
+.balance{font-size:30px;color:#59e69b;font-weight:bold}
+.muted{color:#9aabba;font-size:13px}
+button{border:0;border-radius:12px;padding:14px;color:white;background:#26394c;font-size:15px;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.4}
+.green{background:#20a96a;color:white;width:100%;font-size:19px;padding:19px}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.tabs button{padding:12px 3px;font-size:12px}
+.card{background:#202f40;border-radius:13px;padding:13px;margin:9px 0}
+.card button{width:100%;margin-top:9px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.price{color:#f5c65b;font-weight:bold}
+.selected{border:2px solid #55e69b}
+.big{font-size:38px;text-align:center}
+.hidden{display:none}
+.player{display:flex;justify-content:space-between;padding:12px;background:#202f40;border-radius:10px;margin:7px 0}
 </style>
 </head>
-<body><main class="app">
-<div class="top"><div>🐍 WARSAW VIPER</div><div class="tag">● ONLINE</div></div>
-<section class="balance">
-<div class="muted">ТВОЙ БАЛАНС</div><div class="money" id="money">100.00 zł</div><div class="level">НОВИЧОК ВАРШАВЫ · УРОВЕНЬ 1</div>
-<div class="energy"><div class="energyline"><b>⚡ ЭНЕРГИЯ</b><b id="energyText">500 / 500</b></div><div class="bar"><div class="fill" id="energyBar"></div></div></div>
+<body>
+<div class="app">
+<header>
+<h1>🐍 WARSAW CLICKER</h1>
+<div class="sub">ТВОЯ ЖИЗНЬ. ТВОИ ПРАВИЛА. ТВОЯ ВАРШАВА.</div>
+</header>
+
+<div class="panel">
+<div class="muted">ТВОЙ БАЛАНС</div>
+<div class="balance" id="balance">100.00 zł</div>
+<div class="muted">⚡ Энергия: <span id="energy">500</span>/500</div>
+</div>
+
+<div class="tabs">
+<button onclick="show('home')">🏠 Дом</button>
+<button onclick="show('cars')">🚗 Авто</button>
+<button onclick="show('work')">💵 Работа</button>
+<button onclick="show('top')">🏆 ТОП</button>
+</div>
+
+<section id="home" class="panel">
+<h2>🏠 ТВОЁ ЖИЛЬЁ</h2>
+<p class="muted">Выбери, где будешь жить в Варшаве.</p>
+<div class="grid">
+<div class="card">🛏️<h3>Комната</h3><div class="price">Бесплатно</div><button onclick="buyHome('Комната',0)">Выбрать</button></div>
+<div class="card">🏢<h3>Квартира</h3><div class="price">5 000 zł</div><button onclick="buyHome('Квартира',5000)">Купить</button></div>
+<div class="card">🏡<h3>Дом</h3><div class="price">50 000 zł</div><button onclick="buyHome('Дом',50000)">Купить</button></div>
+<div class="card">🏰<h3>Особняк</h3><div class="price">500 000 zł</div><button onclick="buyHome('Особняк',500000)">Купить</button></div>
+</div>
+<p>Твоё жильё: <b id="myhome">Комната</b></p>
 </section>
-<section class="work"><div class="worker">👷</div><div class="muted">РАБОТА · РАЗНОРАБОЧИЙ</div><div class="reward">+0.50 zł ЗА ТАП</div><button class="tap" id="tap">💵 РАБОТАТЬ</button></section>
-<section class="grid"><div class="tile"><span>🏪</span>МАГАЗИН</div><div class="tile"><span>🚗</span>ТРАНСПОРТ</div><div class="tile"><span>🏆</span>РЕЙТИНГ</div><div class="tile"><span>👑</span>VIP</div></section>
-<div class="note">WARSAW CLICKER · Игровые zł не являются реальными деньгами.<br>Демо-интерфейс: прогресс пока хранится только в этом окне.</div>
-</main>
+
+<section id="cars" class="panel hidden">
+<h2>🚗 АВТОСАЛОН</h2>
+<div class="grid">
+<div class="card">🚙<h3>Старая машина</h3><div class="price">Бесплатно</div><button onclick="buyCar('Старая машина',0)">Выбрать</button></div>
+<div class="card">🚘<h3>BMW</h3><div class="price">15 000 zł</div><button onclick="buyCar('BMW',15000)">Купить</button></div>
+<div class="card">🏎️<h3>Porsche</h3><div class="price">100 000 zł</div><button onclick="buyCar('Porsche',100000)">Купить</button></div>
+<div class="card">👑<h3>Mercedes G</h3><div class="price">200 000 zł</div><button onclick="buyCar('Mercedes G',200000)">Купить</button></div>
+</div>
+<p>Твоя машина: <b id="mycar">Нет машины</b></p>
+</section>
+
+<section id="work" class="panel hidden">
+<h2>💵 ТВОЯ РАБОТА</h2>
+<p class="muted">Работай, зарабатывай и улучшай свою жизнь!</p>
+<div class="big">🔨</div>
+<h3 style="text-align:center">Рабочая смена</h3>
+<p style="text-align:center;color:#55e69b">+0.50 zł за нажатие</p>
+<button class="green" id="earn" onclick="earn()">ЗАРАБОТАТЬ 💰</button>
+<p class="muted" style="text-align:center">1 нажатие = 1 энергия</p>
+</section>
+
+<section id="top" class="panel hidden">
+<h2>🏆 ТОП ИГРОКОВ</h2>
+<p class="muted">Рейтинг будет заполнен реальными игроками после подключения сервера.</p>
+<div class="player"><b>🥇 Ты</b><b id="topmoney">100 zł</b></div>
+<div class="player"><b>🥈 Игрок 2</b><b>—</b></div>
+<div class="player"><b>🥉 Игрок 3</b><b>—</b></div>
+<div class="muted">Демонстрационный рейтинг. Другие игроки пока не подключены.</div>
+</section>
+
+<div class="panel muted" style="text-align:center">
+🇵🇱 WARSAW CLICKER<br>Создай свою империю!
+</div>
+</div>
+
 <script>
-const tg=window.Telegram?.WebApp; tg?.ready(); tg?.expand();
-let balance=100, energy=500;
-const money=document.getElementById('money'), energyText=document.getElementById('energyText'), energyBar=document.getElementById('energyBar'), tap=document.getElementById('tap');
-function render(){money.textContent=balance.toFixed(2)+' zł';energyText.textContent=energy+' / 500';energyBar.style.width=(energy/5)+'%';tap.disabled=energy===0;}
-tap.addEventListener('click',()=>{if(!energy)return;energy--;balance=Math.round((balance+.5)*100)/100;render();tg?.HapticFeedback?.impactOccurred('light');});
-setInterval(()=>{if(energy<500){energy++;render();}},6000);
-render();
-</script></body></html>
+const tg=window.Telegram?.WebApp;
+tg?.ready();
+tg?.expand();
+
+let balance=100;
+let energy=500;
+let home="Комната";
+let car="Нет машины";
+
+function update(){
+ document.getElementById("balance").textContent=balance.toFixed(2)+" zł";
+ document.getElementById("energy").textContent=energy;
+ document.getElementById("myhome").textContent=home;
+ document.getElementById("mycar").textContent=car;
+ document.getElementById("topmoney").textContent=balance.toFixed(2)+" zł";
+ document.getElementById("earn").disabled=energy<1;
+}
+function show(id){
+ document.querySelectorAll("section").forEach(s=>s.classList.add("hidden"));
+ document.getElementById(id).classList.remove("hidden");
+}
+function earn(){
+ if(energy<1)return;
+ energy--;
+ balance+=0.5;
+ update();
+}
+function buyHome(name,price){
+ if(price>balance){alert("Недостаточно денег! Иди заработай.");return;}
+ if(name===home){alert("Это твоё жильё уже выбрано.");return;}
+ balance-=price;
+ home=name;
+ update();
+ alert("Поздравляем! Теперь ты живёшь: "+name);
+}
+function buyCar(name,price){
+ if(price>balance){alert("Недостаточно денег! Иди заработай.");return;}
+ if(name===car){alert("Эта машина уже выбрана.");return;}
+ balance-=price;
+ car=name;
+ update();
+ alert("Поздравляем! Твоя машина: "+name);
+}
+setInterval(()=>{
+ if(energy<500){energy++;update();}
+},6000);
+update();
+</script>
+</body>
+</html>
