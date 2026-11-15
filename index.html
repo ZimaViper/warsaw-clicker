@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>WARSAW VIPER</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{color-scheme:dark;--bg:#0b1118;--panel:#151f2b;--muted:#91a2b5;--green:#59e39a;--gold:#f4c45e}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 0,#1c3440 0,#0b1118 48%);color:#f4f7fb;font-family:Arial,sans-serif;min-height:100vh}
+.app{max-width:480px;margin:auto;padding:22px 18px 30px}.top{display:flex;justify-content:space-between;align-items:center;font-weight:800;letter-spacing:.7px}.tag{font-size:11px;color:var(--green);border:1px solid #28694a;padding:6px 9px;border-radius:20px}
+.balance{margin-top:24px;padding:23px 18px;background:linear-gradient(145deg,#1b3540,#172331);border:1px solid #34505a;border-radius:24px;text-align:center;box-shadow:0 14px 40px #0005}
+.muted{color:var(--muted);font-size:11px;letter-spacing:1.5px;font-weight:bold}.money{font-size:42px;font-weight:900;color:var(--green);margin:8px 0}.level{font-size:12px;color:#c4d1dc}
+.energy{margin-top:18px;background:#0b141d;border-radius:15px;padding:13px}.energyline{display:flex;justify-content:space-between;font-size:13px;margin-bottom:9px}.bar{height:9px;background:#293846;border-radius:9px;overflow:hidden}.fill{height:100%;width:100%;background:linear-gradient(90deg,#36b978,#8bf0a9);transition:width .2s}
+.work{margin-top:18px;text-align:center}.worker{font-size:76px;filter:drop-shadow(0 10px 16px #0008)}.reward{color:var(--green);font-weight:bold;margin:6px}
+.tap{width:100%;border:0;border-radius:17px;padding:18px;background:linear-gradient(100deg,#28a96a,#63e49b);color:#082015;font-weight:900;font-size:17px;box-shadow:0 7px 0 #17683f;cursor:pointer;touch-action:manipulation}.tap:active{transform:translateY(4px);box-shadow:0 3px 0 #17683f}.tap:disabled{opacity:.45}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;margin-top:24px}.tile{background:var(--panel);border:1px solid #263545;border-radius:16px;padding:17px;text-align:center;font-weight:bold}.tile span{display:block;font-size:25px;margin-bottom:7px}.note{text-align:center;color:var(--muted);font-size:11px;margin-top:22px;line-height:1.5}
+</style>
+</head>
+<body><main class="app">
+<div class="top"><div>🐍 WARSAW VIPER</div><div class="tag">● ONLINE</div></div>
+<section class="balance">
+<div class="muted">ТВОЙ БАЛАНС</div><div class="money" id="money">100.00 zł</div><div class="level">НОВИЧОК ВАРШАВЫ · УРОВЕНЬ 1</div>
+<div class="energy"><div class="energyline"><b>⚡ ЭНЕРГИЯ</b><b id="energyText">500 / 500</b></div><div class="bar"><div class="fill" id="energyBar"></div></div></div>
+</section>
+<section class="work"><div class="worker">👷</div><div class="muted">РАБОТА · РАЗНОРАБОЧИЙ</div><div class="reward">+0.50 zł ЗА ТАП</div><button class="tap" id="tap">💵 РАБОТАТЬ</button></section>
+<section class="grid"><div class="tile"><span>🏪</span>МАГАЗИН</div><div class="tile"><span>🚗</span>ТРАНСПОРТ</div><div class="tile"><span>🏆</span>РЕЙТИНГ</div><div class="tile"><span>👑</span>VIP</div></section>
+<div class="note">WARSAW CLICKER · Игровые zł не являются реальными деньгами.<br>Демо-интерфейс: прогресс пока хранится только в этом окне.</div>
+</main>
+<script>
+const tg=window.Telegram?.WebApp; tg?.ready(); tg?.expand();
+let balance=100, energy=500;
+const money=document.getElementById('money'), energyText=document.getElementById('energyText'), energyBar=document.getElementById('energyBar'), tap=document.getElementById('tap');
+function render(){money.textContent=balance.toFixed(2)+' zł';energyText.textContent=energy+' / 500';energyBar.style.width=(energy/5)+'%';tap.disabled=energy===0;}
+tap.addEventListener('click',()=>{if(!energy)return;energy--;balance=Math.round((balance+.5)*100)/100;render();tg?.HapticFeedback?.impactOccurred('light');});
+setInterval(()=>{if(energy<500){energy++;render();}},6000);
+render();
+</script></body></html>
